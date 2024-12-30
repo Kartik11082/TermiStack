@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 import subprocess
@@ -39,14 +40,55 @@ class LlamaModel:
         """
         Stops the Llama3.2 server and releases resources.
         """
-        if self.llama_process:
-            print("Stopping Llama3.2 server...")
-            self.llama_process.terminate()
-            self.llama_process.wait()
-            self.llama_process = None
-            print("Llama3.2 server stopped.")
-        else:
-            print("Llama3.2 server is not running.")
+        try:
+            if self.llama_process:
+                print("Stopping Llama3.2 server...")
+                self.llama_process.terminate()
+                self.llama_process.wait()
+                self.llama_process = None
+                print("Llama3.2 server stopped.")
+            else:
+                print("Llama3.2 server is not running.")
+        except Exception as e:
+            print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
+
+    def parse_json_responses(self, json_string):
+        """
+        Parses a string containing multiple JSON objects and extracts the 'response' field to form a sentence.
+
+        Args:
+            json_string (str): A string containing JSON objects separated by newlines.
+
+        Returns:
+            str: The combined sentence formed from the 'response' fields.
+        """
+        try:
+            sentences = []
+            # Split the string by newlines
+            lines = json_string.split("\n")
+
+            for line in lines:
+                if line.strip():  # Skip empty lines
+                    try:
+                        # Parse the JSON object
+                        json_obj = json.loads(line)
+                        # Extract the 'response' field and add to the sentence
+                        if "response" in json_obj:
+                            sentences.append(json_obj["response"])
+                    except Exception as e:
+                        # Skip invalid JSON lines
+                        print(
+                            "Error:",
+                            type(e).__name__,
+                            __file__,
+                            e.__traceback__.tb_lineno,
+                        )
+                        continue
+
+            # Join all the sentences to form the full output
+            return "".join(sentences)
+        except Exception as e:
+            print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
 
     def send_request(self, payload):
         """
@@ -66,9 +108,10 @@ class LlamaModel:
         try:
             response = requests.post(self.model_url, json=payload, headers=headers)
             response.raise_for_status()
-            return response.json()
+            response = self.parse_json_responses(response.text)
+            return response
         except requests.exceptions.RequestException as e:
-            print(f"Error while sending request: {e}")
+            print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
             return None
 
     def format_response(self, response_data):
@@ -97,12 +140,15 @@ class LlamaModel:
         Returns:
             str: The model's response to the question.
         """
-
-        payload = {"model": self.model_name, "prompt": question}
-        response_data = self.send_request(payload)
-        if response_data:
-            return self.format_response(response_data["context"])
-        return "Error: No response received."
+        try:
+            payload = {"model": self.model_name, "prompt": question}
+            response_data = self.send_request(payload)
+            if response_data:
+                return response_data
+                # return self.format_response(response_data["context"])
+            return "Error: No response received."
+        except Exception as e:
+            print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
 
     def set_session_variable(self, variable, value):
         """

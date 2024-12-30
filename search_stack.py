@@ -1,12 +1,16 @@
-import argparse
-import json
-import subprocess
+try:
+    import argparse
+    import json
+    import subprocess
 
-import requests
-from rich.console import Console
-from rich.table import Table
+    import requests
+    from rich.console import Console
+    from rich.table import Table
 
-from llama_model import LlamaModel
+    from llama_model import LlamaModel
+except Exception as e:
+    print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
+
 
 # Console for better CLI output
 console = Console()
@@ -31,38 +35,42 @@ def make_request(tag, query, site, page=1):
     """
     Sends requests to Stackoverflow and returns a JSON response.
     """
-    console.print(
-        f"[bold blue]Searching in {site} for '{query}' with tag '{tag}'...[/bold blue]"
-    )
-    base_url = "https://api.stackexchange.com"
-    formed_url_1 = "/2.2/search?order=desc"
-    formed_url_2 = (
-        f"&tagged={tag}&sort=activity&intitle={query}&site={site}&page={page}"
-    )
-    formed_url = formed_url_1 + formed_url_2  # Combine the two URLs into one.
-    stackoverflow_url = base_url + formed_url
-
     try:
+        console.print(
+            f"[bold blue]Searching in {site} for '{query}' with tag '{tag}'...[/bold blue]"
+        )
+        base_url = "https://api.stackexchange.com"
+        formed_url_1 = "/2.2/search?order=desc"
+        formed_url_2 = (
+            f"&tagged={tag}&sort=activity&intitle={query}&site={site}&page={page}"
+        )
+        formed_url = formed_url_1 + formed_url_2  # Combine the two URLs into one.
+        stackoverflow_url = base_url + formed_url
+
         resp = requests.get(stackoverflow_url, timeout=10)
         resp.raise_for_status()
         return resp.json()
     except requests.exceptions.RequestException as e:
+        print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
         console.print(f"[bold red]Error fetching data: {e}[/bold red]")
         return None
 
 
 def print_results(items, number):
-    """Pretty print results using rich tables."""
-    table = Table(title="Search Results", style="bold green")
-    table.add_column("Title", style="cyan", justify="left")
-    table.add_column("Link", style="magenta", justify="left")
-    table.add_column("Answered", style="green", justify="center")
+    try:
+        """Pretty print results using rich tables."""
+        table = Table(title="Search Results", style="bold green")
+        table.add_column("Title", style="cyan", justify="left")
+        table.add_column("Link", style="magenta", justify="left")
+        table.add_column("Answered", style="green", justify="center")
 
-    for item in items[:number]:
-        answered = "\u2713" if item.get("is_answered") else "\u274C"
-        table.add_row(item["title"], item["link"], answered)
+        for item in items[:number]:
+            answered = "\u2713" if item.get("is_answered") else "\u274C"
+            table.add_row(item["title"], item["link"], answered)
 
-    console.print(table)
+        console.print(table)
+    except Exception as e:
+        print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
 
 
 def save_results(items, filename):
@@ -80,12 +88,16 @@ def save_results(items, filename):
 
 
 def extract_error_message(error_message):
-    llamaModel = LlamaModel()
-    llamaModel.start_server()
-    question = f"What is the error message when running the script and how to solve it. Give me ste by step detailed explanation: {error_message}"
-    response = llamaModel.ask_question(question)
-    print(f"[bold blue]Detailed explanation: {response}[/bold blue]")
-    return "Python module not found"
+    try:
+        llamaModel = LlamaModel()
+        llamaModel.start_server()
+        question = f"Describe the error message from the script in detail, focusing on its meaning, cause, and what it indicates about the issue. Provide insights to understand the error fully without offering a solution: {error_message}"
+        response = llamaModel.ask_question(question)
+        print(f"[bold blue]Detailed explanation: {response}[/bold blue]")
+        llamaModel.stop_server()
+        return "Python module not found"
+    except Exception as e:
+        print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
 
 
 def execute_script_and_search_error(script_path):
@@ -112,7 +124,6 @@ def execute_script_and_search_error(script_path):
         error_message = extract_error_message(e.stderr.strip())
         # Parse the error message by passing through a fuinction to extract the error message
         console.print(f"[bold red]Error occurred: {error_message}[/bold red]")
-
         # Search StackOverflow for the error message
         json_response = make_request("python", error_message, "stackoverflow")
 
@@ -126,6 +137,7 @@ def execute_script_and_search_error(script_path):
 
     except Exception as e:
         # Catch any other exceptions during script execution
+        print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
         console.print(
             f"[bold red]An error occurred while executing the script: {str(e)}[/bold red]"
         )
@@ -162,7 +174,7 @@ def main():
         args = parser.parse_args()
 
         if args.script:
-            print("Running script", args.script)
+            # print("Running script", args.script)
             # Function call
             execute_script_and_search_error(
                 str(args.script),
@@ -188,6 +200,7 @@ def main():
             save_results(items, args.o)
 
     except Exception as e:
+        print("Error:", type(e).__name__, __file__, e.__traceback__.tb_lineno)
         console.print(f"[bold red]An error occurred: {e}[/bold red]")
 
 
