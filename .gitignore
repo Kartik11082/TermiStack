@@ -136,3 +136,4 @@ searchStackenv/
 *.gif
 
 test.py
+error.py
